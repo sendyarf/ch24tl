@@ -154,6 +154,61 @@
             object-fit: contain;
         }
 
+        /* Volume control */
+        .volume-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .volume-slider-container {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.9);
+            border-radius: 6px;
+            padding: 8px;
+            display: none;
+            z-index: 20;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            width: 120px;
+        }
+
+        .volume-slider-container.visible {
+            display: block;
+        }
+
+        .volume-slider {
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(to right, #fff 0%, #fff var(--volume), #666 var(--volume), #666 100%);
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+            -webkit-appearance: none;
+            transition: background 0.2s;
+        }
+
+        .volume-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            background: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 2px rgba(0,0,0,0.5);
+        }
+
+        .volume-slider::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            background: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 2px rgba(0,0,0,0.5);
+        }
+
         /* Quality menu */
         .quality-menu {
             position: absolute;
@@ -206,6 +261,52 @@
             text-align: center;
         }
 
+        /* Context menu for right-click */
+        .context-menu {
+            position: absolute;
+            background: rgba(0,0,0,0.9);
+            border-radius: 6px;
+            padding: 10px;
+            z-index: 30;
+            display: none;
+            min-width: 200px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 12px;
+        }
+
+        .context-menu.visible {
+            display: block;
+        }
+
+        .context-menu-item {
+            padding: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-radius: 4px;
+        }
+
+        .context-menu-item:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .context-menu-item.info {
+            cursor: default;
+            background: none;
+            opacity: 0.8;
+        }
+
+        .context-menu-item.info:hover {
+            background: none;
+        }
+
+        .context-menu-item i {
+            width: 16px;
+            text-align: center;
+        }
+
         /* Fullscreen fixes */
         :fullscreen, :-webkit-full-screen, :-moz-full-screen, :-ms-fullscreen { 
             width: 100vw; 
@@ -217,8 +318,6 @@
             50% { opacity: 0.3; }
             100% { opacity: 1; }
         }
-
-
 
         /* Prevent text selection */
         * {
@@ -240,6 +339,12 @@
             .quality-menu {
                 min-width: 140px;
             }
+            .volume-slider-container {
+                width: 100px;
+            }
+            .volume-slider {
+                width: 100%;
+            }
             .live-indicator, .delay-indicator {
                 padding: 5px 10px;
                 font-size: clamp(9px, 2vw, 11px);
@@ -251,13 +356,17 @@
             .delay-indicator i {
                 font-size: 11px;
             }
+            .context-menu {
+                min-width: 180px;
+                font-size: 11px;
+            }
         }
     </style>
 </head>
 <body>
     <div class='ViostreamIframe'>
         <div id='videoContainer'>
-            <video id='player' playsinline='' webkit-playsinline='' muted></video>
+            <video id='player' playsinline='' webkit-playsinline=''></video>
             
             <div class='quality-menu' id='qualityMenu'>
                 <div class='quality-menu-title'>Video Quality</div>
@@ -267,11 +376,29 @@
                 </div>
             </div>
             
+            <div class='context-menu' id='contextMenu'>
+                <div class='context-menu-item info' id='videoInfo'>Memuat informasi...</div>
+                <div class='context-menu-item' id='copyUrl'>
+                    <i class='fas fa-copy'></i> Salin URL Video
+                </div>
+                <div class='context-menu-item info'>
+                    <i class='fas fa-info-circle'></i> Powered by Futbol404
+                </div>
+            </div>
+            
             <div class='video-controls'>
                 <div class='control-left'>
                     <button class='control-button' id='playPauseBtn' aria-label='Play/Pause'>
                         <i class='fas fa-play' id='playIcon'></i>
                     </button>
+                    <div class='volume-container'>
+                        <button class='control-button' id='volumeBtn' aria-label='Volume Control'>
+                            <i class='fas fa-volume-up' id='volumeIcon'></i>
+                        </button>
+                        <div class='volume-slider-container' id='volumeSliderContainer'>
+                            <input type='range' min='0' max='100' value='100' class='volume-slider' id='volumeSlider'>
+                        </div>
+                    </div>
                     <div class='live-indicator' id='liveIndicator'>
                         <span class='dot'></span>LIVE
                     </div>
@@ -312,14 +439,16 @@
                     type: "mpd",
                     keys: [
                         { k1: "d84c325f36814f39bbe59080272b10c3", k2: "550727de4c96ef1ecff874905493580f" }
-                    ]
+                    ],
+                    title: "SSC1 Live"
                 },
                 "SSC2": {
                     url: "https://ssc-2-enc.edgenextcdn.net/out/v1/a16db2ec338a445a82d9c541cc9293f9/index.mpd",
                     type: "mpd",
                     keys: [
                         { k1: "8bcfc55359e24bd7ad1c5560a96ddd3c", k2: "b5dcf721ab522af92a9d3bf0bd55b596" }
-                    ]
+                    ],
+                    title: "SSC2 Live"
                 },
             };
 
@@ -339,6 +468,13 @@
             let qualityMenu = null;
             let qualityOptions = null;
             let autoQuality = null;
+            let volumeBtn = null;
+            let volumeIcon = null;
+            let volumeSlider = null;
+            let volumeSliderContainer = null;
+            let contextMenu = null;
+            let videoInfo = null;
+            let copyUrl = null;
             let isLive = true;
             let delayAmount = 0;
             let availableQualities = [];
@@ -361,15 +497,29 @@
                 qualityMenu = document.getElementById('qualityMenu');
                 qualityOptions = document.getElementById('qualityOptions');
                 autoQuality = document.getElementById('autoQuality');
+                volumeBtn = document.getElementById('volumeBtn');
+                volumeIcon = document.getElementById('volumeIcon');
+                volumeSlider = document.getElementById('volumeSlider');
+                volumeSliderContainer = document.getElementById('volumeSliderContainer');
+                contextMenu = document.getElementById('contextMenu');
+                videoInfo = document.getElementById('videoInfo');
+                copyUrl = document.getElementById('copyUrl');
+
+                // Initialize video volume
+                video.volume = 1.0;
+                video.muted = false;
+                volumeSlider.value = 100;
 
                 setupCustomControls();
                 setupQualityControls();
+                setupVolumeControls();
+                setupContextMenu();
 
                 shaka.polyfill.installAll();
 
                 if (!shaka.Player.isBrowserSupported()) {
                     console.error('Browser not supported!');
-                    document.getElementById('error').textContent = 'Browser not supported for video playback.';
+                    document.getElementById('error').textContent = 'Browser tidak didukung untuk pemutaran video.';
                     document.getElementById('error').style.display = 'block';
                     return;
                 }
@@ -400,6 +550,7 @@
                 function hideControls() {
                     controls.classList.remove('visible');
                     qualityMenu.classList.remove('visible');
+                    volumeSliderContainer.classList.remove('visible');
                 }
 
                 videoContainer.addEventListener('mousemove', showControls);
@@ -429,6 +580,97 @@
                 });
 
                 startStreamMonitoring();
+            }
+
+            function setupVolumeControls() {
+                volumeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    volumeSliderContainer.classList.toggle('visible');
+                    showControls();
+                });
+
+                volumeSlider.addEventListener('input', () => {
+                    const volume = volumeSlider.value / 100;
+                    video.volume = volume;
+                    video.muted = volume === 0;
+                    updateVolumeIcon(volume);
+                    volumeSlider.style.setProperty('--volume', `${volumeSlider.value}%`);
+                });
+
+                volumeSlider.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+
+                volumeSliderContainer.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+
+                document.addEventListener('click', (e) => {
+                    if (!volumeSliderContainer.contains(e.target) && e.target !== volumeBtn && !volumeSlider.contains(e.target)) {
+                        volumeSliderContainer.classList.remove('visible');
+                    }
+                });
+
+                // Update icon and slider on volume change
+                video.addEventListener('volumechange', () => {
+                    const volume = video.muted ? 0 : video.volume;
+                    volumeSlider.value = volume * 100;
+                    volumeSlider.style.setProperty('--volume', `${volume * 100}%`);
+                    updateVolumeIcon(volume);
+                });
+
+                // Initialize volume icon and slider
+                updateVolumeIcon(video.volume);
+                volumeSlider.style.setProperty('--volume', `${video.volume * 100}%`);
+            }
+
+            function updateVolumeIcon(volume) {
+                if (video.muted || volume === 0) {
+                    volumeIcon.className = 'fas fa-volume-mute';
+                } else if (volume < 0.5) {
+                    volumeIcon.className = 'fas fa-volume-down';
+                } else {
+                    volumeIcon.className = 'fas fa-volume-up';
+                }
+            }
+
+            function setupContextMenu() {
+                video.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    contextMenu.style.top = `${e.clientY}px`;
+                    contextMenu.style.left = `${e.clientX}px`;
+                    contextMenu.classList.add('visible');
+
+                    // Update video info
+                    const title = config ? config.title : 'Unknown';
+                    const status = isLive ? 'LIVE' : `Delayed (${delayAmount}s)`;
+                    const resolution = currentQuality === 'auto' ? 'Auto' : currentQuality;
+                    videoInfo.textContent = `Judul: ${title} | Resolusi: ${resolution} | Status: ${status}`;
+                });
+
+                copyUrl.addEventListener('click', () => {
+                    navigator.clipboard.writeText(window.location.href).then(() => {
+                        alert('URL video disalin ke clipboard!');
+                    }).catch(() => {
+                        alert('Gagal menyalin URL.');
+                    });
+                    contextMenu.classList.remove('visible');
+                });
+
+                // Close context menu on any click outside the menu
+                document.addEventListener('click', (e) => {
+                    if (contextMenu.classList.contains('visible') && !contextMenu.contains(e.target)) {
+                        contextMenu.classList.remove('visible');
+                    }
+                });
+
+                // Close context menu on right-click outside the menu
+                document.addEventListener('contextmenu', (e) => {
+                    if (contextMenu.classList.contains('visible') && !contextMenu.contains(e.target) && e.target !== video) {
+                        e.preventDefault();
+                        contextMenu.classList.remove('visible');
+                    }
+                });
             }
 
             function setupQualityControls() {
@@ -699,7 +941,7 @@
 
             function onError(error) {
                 console.error('Error code', error.code, 'object', error);
-                document.getElementById('error').textContent = 'Error loading video: ' + error.message;
+                document.getElementById('error').textContent = 'Gagal memuat video: ' + error.message;
                 document.getElementById('error').style.display = 'block';
             }
 
@@ -714,6 +956,7 @@
                 const controls = document.querySelector('.video-controls');
                 controls.classList.remove('visible');
                 qualityMenu.classList.remove('visible');
+                volumeSliderContainer.classList.remove('visible');
             }
         }
     </script>
