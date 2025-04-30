@@ -412,6 +412,7 @@
                     <a class='logo' href='https://linktr.ee/futbol404' target='_blank' aria-label='Brand Logo'>
                         <img alt='Futbol404 Logo' src='https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEg01MWui2j9yeMDbKrY1yZZYNHDtDUEyu9ANsm4oiaVxR0RrUwweJDHvpPqn2ipzlNAjz8tyvLiYlXJ2v0nmsIzwonoP_og483vPNENopMnHiihmzhDmAcSkU4ne7MxW5V8YuiKJ4pCUml9Uh8Cq4mpn2wTVkwncDHN2rvVusK_5ZZgz231lCIMKKWWo_fB/s320/GOVOETLOGO.png' onerror='this.src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="'>
                     </a>
+                    < Penalti: 10px; 
                     <button class='control-button' id='qualityBtn' aria-label='Quality Settings'>
                         <i class='fas fa-cog'></i>
                     </button>
@@ -482,6 +483,9 @@
             let availableQualities = [];
             let currentQuality = "auto";
             let controlsTimeout = null;
+            let retryCount = 0;
+            const MAX_RETRIES = 3;
+            const RETRY_DELAY = 5000; // 5 detik
 
             document.addEventListener('DOMContentLoaded', initApp);
 
@@ -855,6 +859,10 @@
                         }, 500);
                     }
                 });
+
+                // Tambahkan event listener untuk error
+                video.addEventListener('error', handleVideoError);
+                video.addEventListener('stalled', handleVideoError);
             }
 
             function checkStreamDelay() {
@@ -883,11 +891,34 @@
                     liveIndicator.style.display = 'flex';
                     delayIndicator.classList.remove('visible');
                     delayAmount = 0;
+                    retryCount = 0; // Reset retry count saat kembali live
                 } else {
                     liveIndicator.style.display = 'none';
                     delayIndicator.classList.add('visible');
                     delayAmount = delay;
                     delaySeconds.textContent = delay;
+                }
+            }
+
+            function handleVideoError() {
+                console.log('Video error detected, retry count:', retryCount);
+                if (retryCount < MAX_RETRIES) {
+                    retryCount++;
+                    document.getElementById('error').textContent = `Mencoba memuat ulang (${retryCount}/${MAX_RETRIES})...`;
+                    document.getElementById('error').style.display = 'block';
+                    
+                    // Hentikan player saat ini
+                    if (shakaPlayer) {
+                        shakaPlayer.unload();
+                    }
+
+                    // Coba muat ulang setelah delay
+                    setTimeout(() => {
+                        initPlayer();
+                    }, RETRY_DELAY);
+                } else {
+                    document.getElementById('error').textContent = 'Gagal memuat video setelah beberapa kali mencoba.';
+                    document.getElementById('error').style.display = 'block';
                 }
             }
 
@@ -930,6 +961,7 @@
 
                 shakaPlayer.load(config.url).then(() => {
                     console.log('Video loaded successfully');
+                    document.getElementById('error').style.display = 'none';
                     video.play().catch(e => {
                         console.log('Auto-play was prevented');
                         showControls();
@@ -943,8 +975,7 @@
 
             function onError(error) {
                 console.error('Error code', error.code, 'object', error);
-                document.getElementById('error').textContent = 'Gagal memuat video: ' + error.message;
-                document.getElementById('error').style.display = 'block';
+                handleVideoError();
             }
 
             function showControls() {
